@@ -18,6 +18,13 @@ function App() {
   // 필터 상태
   const [categoryFilter, setCategoryFilter] = useState('전체');
   const [statusFilter, setStatusFilter] = useState('전체');
+  const [sortType, setSortType] = useState('마감일 순');
+
+  // 중요도 정렬
+  const priorityWeights = { High: 3, Medium: 2, Low: 1 };
+
+  // 검색
+  const [searchTerm, setSearchTerm] = useState('');
 
   // [기능] 할 일 추가
   const handleAddTodo = () => {
@@ -45,17 +52,25 @@ function App() {
     setSelectedDate('');
   };
 
-  // [기능] 필터링 로직
-  const filteredTodos = todos.filter(todo => {
-    // 필터 버튼의 '🔵 Study' 등에서 텍스트만 추출하거나 매칭
-    const matchCategory = categoryFilter === '전체' || categoryFilter.includes(todo.category);
-    const matchStatus = 
-      statusFilter === '전체' || 
-      (statusFilter === '진행 중' && !todo.completed) || 
-      (statusFilter === '완료' && todo.completed);
-    
-    return matchCategory && matchStatus;
-  });
+  // [기능] 필터링 및 정렬 통합 로직
+  const filteredTodos = todos
+    .filter(todo => {
+      const matchSearch = todo.text.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchCategory = categoryFilter === '전체' || categoryFilter.includes(todo.category);
+      const matchStatus = 
+        statusFilter === '전체' || 
+        (statusFilter === '진행 중' && !todo.completed) || 
+        (statusFilter === '완료' && todo.completed);
+      return matchSearch && matchCategory && matchStatus;
+    })
+    .sort((a, b) => {
+      if (sortType === 'endDate') {
+        return new Date(a.date) - new Date(b.date); // 빠른 날짜순
+      } else if (sortType === 'priority') {
+        return priorityWeights[b.priority] - priorityWeights[a.priority]; // 높은 중요도순
+      }
+      return 0;
+    });
 
   return (
     <div className={styles.wrapper}>
@@ -121,13 +136,13 @@ function App() {
           </div>
           <div className={styles.searchRow}>
             <div className={styles.leftBlock}>
-              <input className={styles.searchInput} placeholder="할 일 검색..." />
+              <input className={styles.searchInput} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="할 일 검색..." />
             </div>
             <div className={styles.rightBlock}>
-              <select className={styles.sortSelect}>
-                <option>정렬: 마감일 순</option>
-                <option>정렬: 생성일 순</option>
-                <option>정렬: 중요도 순</option>
+              <select className={styles.sortSelect} value={sortType} onChange={(e) => setSortType(e.target.value)}>
+                <option value="endDate">정렬: 마감일 순</option>
+                <option value="startDate">정렬: 생성일 순</option>
+                <option value="priority">정렬: 중요도 순</option>
               </select>
             </div>
           </div>          
