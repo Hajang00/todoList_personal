@@ -1,13 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './App.module.css';
 
+const API = 'http://localhost:3001';
+
 function App() {
-  // 할 일 목록 상태
-  const [todos, setTodos] = useState([
-    { id: 1, text: '리액트 프로젝트 UI 설계', category: 'Study', priority: 'High', date: '2026-04-25', completed: false },
-    { id: 2, text: '매일 30분 운동하기', category: 'Health', priority: 'Low', date: '2026-05-02', completed: true },
-    { id: 3, text: '주간 회의 자료 준비', category: 'Work', priority: 'Medium', date: '2026-05-01', completed: false },
-  ]);
+  const [todos, setTodos] = useState([]);
 
   // 입력값 관리를 위한 상태
   const [inputText, setInputText] = useState('');
@@ -18,59 +15,107 @@ function App() {
   // 필터 상태
   const [categoryFilter, setCategoryFilter] = useState('전체');
   const [statusFilter, setStatusFilter] = useState('전체');
-  const [sortType, setSortType] = useState('마감일 순');
-
-  // 중요도 정렬
-  const priorityWeights = { High: 3, Medium: 2, Low: 1 };
-
-  // 검색
+  const [sortType, setSortType] = useState('endDate');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // [기능] 할 일 추가
-  const handleAddTodo = () => {
+  // 중요도 정렬 가중치
+  const priorityWeights = { High: 3, Medium: 2, Low: 1 };
+
+  // DB에서 할 일 목록 불러오기
+  useEffect(() => {
+    fetch(`${API}/tasks`)
+      .then(r => r.json())
+      .then(data => setTodos(data))
+      .catch(err => console.error('불러오기 실패:', err));
+  }, []);
+
+  // [기능] 할 일 추가 → DB POST
+  const handleAddTodo = async () => {
     // 유효성 검사: 하나라도 입력되지 않으면 추가 안 함
     if (!inputText || !selectedCategory || !selectedPriority || !selectedDate) {
       alert('모든 항목을 입력하거나 선택해주세요!');
       return;
     }
+    // DB에 새 할 일 저장
+    try {
+      const res = await fetch(`${API}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task_name: inputText,
+          category: selectedCategory,
+          priority: selectedPriority,
+          due_date: selectedDate,
+          is_completed: false,
+        }),
+      });
 
-    const newTodo = {
-      id: Date.now(),
-      text: inputText,
-      category: selectedCategory,
-      priority: selectedPriority,
-      date: selectedDate,
-      completed: false,
-    };
-
-    setTodos([newTodo, ...todos]); // 새 항목을 맨 위로 추가
-    
-    // 입력창 초기화
-    setInputText('');
-    setSelectedCategory('');
-    setSelectedPriority('');
-    setSelectedDate('');
+      const saved = await res.json();// 저장된 할 일 데이터 받아오기
+      setTodos(prev => [saved, ...prev]);// 새로 추가된 할 일을 목록 맨 앞에 추가
+      setInputText(''); setSelectedCategory(''); setSelectedPriority(''); setSelectedDate('');// 입력 필드 초기화
+    } 
+    // 에러 처리
+    catch (err) {
+      console.error('추가 실패:', err);
+    }
   };
 
-  // [기능] 필터링 및 정렬 통합 로직
+  // [기능] 완료 토글 → DB PUT
+  const handleToggle = async (todo) => {
+    // DB에 완료 상태 업데이트
+    try {
+      const res = await fetch(`${API}/tasks/${todo._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },// JSON 형식으로 데이터 전송
+        body: JSON.stringify({ is_completed: !todo.is_completed }), // 체크박스 클릭 시 현재 상태의 반대로 업데이트
+      });
+      const updated = await res.json(); // 업데이트된 할 일 데이터 받아오기
+      setTodos(todos.map(t => t._id === todo._id ? updated : t));// 업데이트된 데이터로 교체하여 상태 갱신
+    } 
+    // 에러 처리
+    catch (err) {
+      console.error('토글 실패:', err);
+    }
+  };
+
+ // [기능] 삭제 → DB DELETE
+  const handleDelete = async (id) => {
+    try {
+      await fetch(`${API}/tasks/${id}`, { method: 'DELETE' });
+      setTodos(todos.filter(t => t._id !== id)); // 삭제된 할 일을 목록에서 제거
+    } 
+    // 에러 처리
+    catch (err) {
+      console.error('삭제 실패:', err);
+    }
+  };
+
+  // [기능] 필터링 + 검색 + 정렬
   const filteredTodos = todos
     .filter(todo => {
-      const matchSearch = todo.text.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchSearch = (todo.task_name || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchCategory = categoryFilter === '전체' || categoryFilter.includes(todo.category);
-      const matchStatus = 
-        statusFilter === '전체' || 
-        (statusFilter === '진행 중' && !todo.completed) || 
-        (statusFilter === '완료' && todo.completed);
+      const matchStatus =
+        statusFilter === '전체' ||
+        (statusFilter === '진행 중' && !todo.is_completed) ||
+        (statusFilter === '완료' && todo.is_completed);
+
       return matchSearch && matchCategory && matchStatus;
     })
     .sort((a, b) => {
       if (sortType === 'endDate') {
-        return new Date(a.date) - new Date(b.date); // 빠른 날짜순
-      } else if (sortType === 'priority') {
-        return priorityWeights[b.priority] - priorityWeights[a.priority]; // 높은 중요도순
+        return new Date(a.due_date) - new Date(b.due_date);
       }
-      return 0;
+      if (sortType === 'priority') {
+        return priorityWeights[b.priority] - priorityWeights[a.priority];
+      }
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
     });
+
+  const today = new Date().toISOString().slice(0, 10);
+  const todayDueCount = todos.filter(
+    t => (t.due_date || '').slice(0, 10) === today && !t.is_completed
+  ).length;
 
   return (
     <div className={styles.wrapper}>
@@ -90,15 +135,15 @@ function App() {
           </div>
           <div className={styles.statCard}>
             <span className={styles.statLabel}>완료한 일</span>
-            <span className={styles.statNumber} style={{ color: '#22C55E' }}>{todos.filter(t => t.completed).length}</span>
+            <span className={styles.statNumber} style={{ color: '#22C55E' }}>{todos.filter(t => t.is_completed).length}</span>
           </div>
           <div className={styles.statCard}>
             <span className={styles.statLabel}>진행 중</span>
-            <span className={styles.statNumber} style={{ color: '#FFB800' }}>{todos.filter(t => !t.completed).length}</span>
+            <span className={styles.statNumber} style={{ color: '#FFB800' }}>{todos.filter(t => !t.is_completed).length}</span>
           </div>
           <div className={styles.statCard}>
             <span className={styles.statLabel}>오늘 마감</span>
-            <span className={styles.statNumber} style={{ color: '#8B5CF6' }}>3</span>
+            <span className={styles.statNumber} style={{ color: '#8B5CF6' }}>{todayDueCount}</span>
           </div>
         </section>
 
@@ -134,12 +179,22 @@ function App() {
               </div>
             </div>
           </div>
+          {/* [기능] 검색 + 정렬 UI */}
           <div className={styles.searchRow}>
             <div className={styles.leftBlock}>
-              <input className={styles.searchInput} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="할 일 검색..." />
+              <input
+                className={styles.searchInput}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="할 일 검색..."
+              />
             </div>
             <div className={styles.rightBlock}>
-              <select className={styles.sortSelect} value={sortType} onChange={(e) => setSortType(e.target.value)}>
+              <select
+                className={styles.sortSelect}
+                value={sortType}
+                onChange={(e) => setSortType(e.target.value)}
+              >
                 <option value="endDate">정렬: 마감일 순</option>
                 <option value="startDate">정렬: 생성일 순</option>
                 <option value="priority">정렬: 중요도 순</option>
@@ -200,17 +255,15 @@ function App() {
             전체 할 일 <span style={{ color: '#6C83FF' }}>{filteredTodos.length}</span>
           </h2>
           {filteredTodos.map(todo => (
-            <div key={todo.id} className={styles.todoItem}>
+            <div key={todo._id} className={styles.todoItem}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <input 
                   type="checkbox" 
-                  checked={todo.completed} 
-                  onChange={() => {
-                    setTodos(todos.map(t => t.id === todo.id ? {...t, completed: !t.completed} : t));
-                  }} 
+                  checked={todo.is_completed} 
+                  onChange={() => handleToggle(todo)} 
                 />
-                <span className={`${styles.todoText} ${todo.completed ? styles.completedText : ''}`}>
-                  {todo.text}
+                <span className={`${styles.todoText} ${todo.is_completed ? styles.completedText : ''}`}>
+                  {todo.task_name}
                 </span>
                 
                 <span className={`${styles.tag} ${styles.category}`}>
@@ -221,7 +274,9 @@ function App() {
                   {todo.priority}
                 </span>
               </div>
-              <div className={styles.dateCaption}>{todo.date}</div>
+              <div className={styles.dateCaption}>{todo.due_date?.slice(0, 10)}</div>
+              {/* [기능] 삭제 버튼 */}
+              <button onClick={() => handleDelete(todo._id)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>delete</button>
             </div>
           ))}
         </section>
