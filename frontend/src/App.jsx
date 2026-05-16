@@ -112,10 +112,15 @@ function App() {
       return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
     });
 
+  // 오늘 마감인 할 일 개수 계산
   const today = new Date().toISOString().slice(0, 10);
   const todayDueCount = todos.filter(
     t => (t.due_date || '').slice(0, 10) === today && !t.is_completed
   ).length;
+
+  // 현재 날짜 포맷팅
+  const todayDate = new Date();
+  const formatDate = `${todayDate.getFullYear()}년 ${todayDate.getMonth() + 1}월 ${todayDate.getDate()}일`;
 
   return (
     <div className={styles.wrapper}>
@@ -125,7 +130,7 @@ function App() {
             <h1 className={styles.title}>ClearTodo</h1>
             <p className={styles.subtitle}>오늘 할 일을 계획하고 완벽하게 달성해보세요.</p>
           </div>
-          <div className={styles.headerDate}>☀️ 2026년 4월 25일 (토)</div>
+          <div className={styles.headerDate}>☀️ {formatDate}</div>
         </header>
 
         <section className={styles.statsRow}>
