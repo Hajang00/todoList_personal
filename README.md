@@ -107,3 +107,9 @@ npm run dev
   due_date:     Date      // 필수
 }
 ```
+
+### 실행 영상 
+
+
+https://github.com/user-attachments/assets/2893ad6a-ad32-414f-88bb-5611c64ae33f
+
