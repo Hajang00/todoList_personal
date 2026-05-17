@@ -5,6 +5,7 @@ const API = 'http://localhost:3001';
 
 function App() {
   const [todos, setTodos] = useState([]);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // 입력값 관리를 위한 상태
   const [inputText, setInputText] = useState('');
@@ -112,179 +113,256 @@ function App() {
       return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
     });
 
-  // 오늘 마감인 할 일 개수 계산
+  // 오늘 날짜
   const today = new Date().toISOString().slice(0, 10);
-  const todayDueCount = todos.filter(
+  
+  // 오늘 해야할 할 일
+  const todayTodos = todos.filter(
     t => (t.due_date || '').slice(0, 10) === today && !t.is_completed
-  ).length;
+  );
 
   // 현재 날짜 포맷팅
-  const todayDate = new Date();
-  const formatDate = `${todayDate.getFullYear()}년 ${todayDate.getMonth() + 1}월 ${todayDate.getDate()}일`;
+  const formatDate = `${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월 ${new Date().getDate()}일 (${['일', '월', '화', '수', '목', '금', '토'][new Date().getDay()]})`;
 
   return (
-    <div className={styles.wrapper}>
-      <div className={styles.container}>
-        <header className={styles.header}>
-          <div>
-            <h1 className={styles.title}>ClearTodo</h1>
-            <p className={styles.subtitle}>오늘 할 일을 계획하고 완벽하게 달성해보세요.</p>
+    <div className={`${styles.wrapper} ${isDarkMode ? styles.dark : ''}`}>
+      <div className={styles.appContainer}>
+        {/* ===== HEADER ===== */}
+        <header className={styles.topHeader}>
+          <div className={styles.headerContent}>
+            <div>
+              <h1 className={styles.appTitle}>Daily Flow</h1>
+            </div>
+            <div className={styles.headerRight}>
+              <div className={styles.dateDisplay}>Today:  {formatDate}</div>
+              <button 
+                className={styles.darkModeToggle}
+                onClick={() => setIsDarkMode(!isDarkMode)}
+              >
+                {isDarkMode ? '☀️ Light' : '🌙 Dark'}
+              </button>
+            </div>
           </div>
-          <div className={styles.headerDate}>☀️ {formatDate}</div>
         </header>
 
-        <section className={styles.statsRow}>
-          <div className={styles.statCard}>
-            <span className={styles.statLabel}>전체 할 일</span>
-            <span className={styles.statNumber} style={{ color: '#6C83FF' }}>{todos.length}</span>
-          </div>
-          <div className={styles.statCard}>
-            <span className={styles.statLabel}>완료한 일</span>
-            <span className={styles.statNumber} style={{ color: '#22C55E' }}>{todos.filter(t => t.is_completed).length}</span>
-          </div>
-          <div className={styles.statCard}>
-            <span className={styles.statLabel}>진행 중</span>
-            <span className={styles.statNumber} style={{ color: '#FFB800' }}>{todos.filter(t => !t.is_completed).length}</span>
-          </div>
-          <div className={styles.statCard}>
-            <span className={styles.statLabel}>오늘 마감</span>
-            <span className={styles.statNumber} style={{ color: '#8B5CF6' }}>{todayDueCount}</span>
-          </div>
-        </section>
-
-        <section className={styles.filterSection}>
-          <div className={styles.filterHeader}>필터</div>
-          <div className={styles.filterRow}>
-            <div className={styles.filterGroup}>
-              <span className={styles.filterLabel}>카테고리</span>
-              <div className={styles.filterButtons}>
-                {['전체', '🔵 Study', '🟠 Work', '🟢 Health', '🟣 Personal'].map((cat) => (
-                  <button 
-                    key={cat}
-                    className={`${styles.filterBtn} ${categoryFilter === cat ? styles.filterBtnActive : ''}`}
-                    onClick={() => setCategoryFilter(cat)}
-                  >
-                  {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className={styles.filterGroup}>
-              <span className={styles.filterLabel}>상태</span>
-              <div className={styles.filterButtons}>
-                {['전체', '진행 중', '완료'].map((status) => (
-                  <button 
-                    key={status}
-                    className={`${styles.filterBtn} ${statusFilter === status ? styles.filterBtnActive : ''}`}
-                    onClick={() => setStatusFilter(status)}
-                  >
-                    {status}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          {/* [기능] 검색 + 정렬 UI */}
-          <div className={styles.searchRow}>
-            <div className={styles.leftBlock}>
-              <input
-                className={styles.searchInput}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="할 일 검색..."
-              />
-            </div>
-            <div className={styles.rightBlock}>
-              <select
-                className={styles.sortSelect}
-                value={sortType}
-                onChange={(e) => setSortType(e.target.value)}
-              >
-                <option value="endDate">정렬: 마감일 순</option>
-                <option value="startDate">정렬: 생성일 순</option>
-                <option value="priority">정렬: 중요도 순</option>
-              </select>
-            </div>
-          </div>          
-        </section>
-
-        <section className={styles.addCard}>
-          <h2 className={styles.sectionTitle}>할 일 추가</h2>
-          <input 
-            className={styles.inputMain} 
-            placeholder="할 일을 입력하세요..." 
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-          />
-
-          <div className={styles.addOptionsRow}>
-            <div className={styles.selectors}>
-              <select 
-                className={styles.selectBox} 
-                value={selectedCategory} 
-                onChange={(e) => setSelectedCategory(e.target.value)}
-              >
-                <option value="">카테고리 선택</option>
-                <option value="Study">Study</option>
-                <option value="Work">Work</option>
-                <option value="Health">Health</option>
-                <option value="Personal">Personal</option>
-              </select>
-
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {['High', 'Medium', 'Low'].map((p) => (
-                  <button 
-                    key={p}
-                    type="button"
-                    className={`${styles.priorityBtn} ${selectedPriority === p ? styles[`priority${p}`] : ''}`}
-                    onClick={() => setSelectedPriority(p)}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-
+        {/* ===== MAIN CONTENT ===== */}
+        <div className={styles.mainContent}>
+          {/* LEFT PANEL */}
+          <aside className={styles.leftPanel}>
+            {/* 할 일 추가 섹션 */}
+            <div className={styles.addSection}>
+              <h2 className={styles.panelTitle}>새 일정 추가</h2>
               <input 
-                type="date" 
-                className={styles.selectBox} 
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                className={styles.mainInput} 
+                placeholder="할 일을 입력하세요..." 
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
               />
-            </div>
-            <button className={styles.plusButton} onClick={handleAddTodo}>+</button>
-          </div>
-        </section>
+              <div className={styles.optionsRow}>
+                <select 
+                  className={styles.selectBox} 
+                  value={selectedCategory} 
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                >
+                  <option value="">카테고리</option>
+                  <option value="Study">Study</option>
+                  <option value="Work">Work</option>
+                  <option value="Health">Health</option>
+                  <option value="Personal">Personal</option>
+                </select>
 
-        <section>
-          <h2 className={styles.sectionTitle}>
-            전체 할 일 <span style={{ color: '#6C83FF' }}>{filteredTodos.length}</span>
-          </h2>
-          {filteredTodos.map(todo => (
-            <div key={todo._id} className={styles.todoItem}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className={styles.priorityGroup}>
+                  {['High', 'Medium', 'Low'].map((p) => (
+                    <button 
+                      key={p}
+                      type="button"
+                      className={`${styles.priorityBtn} ${selectedPriority === p ? styles.priorityBtnActive : ''}`}
+                      onClick={() => setSelectedPriority(p)}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+
                 <input 
-                  type="checkbox" 
-                  checked={todo.is_completed} 
-                  onChange={() => handleToggle(todo)} 
+                  type="date" 
+                  className={styles.selectBox} 
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
                 />
-                <span className={`${styles.todoText} ${todo.is_completed ? styles.completedText : ''}`}>
-                  {todo.task_name}
-                </span>
-                
-                <span className={`${styles.tag} ${styles.category}`}>
-                  {todo.category}
-                </span>
-                
-                <span className={`${styles.tag} ${styles[`priority${todo.priority}`]}`}>
-                  {todo.priority}
-                </span>
               </div>
-              <div className={styles.dateCaption}>{todo.due_date?.slice(0, 10)}</div>
-              {/* [기능] 삭제 버튼 */}
-              <button onClick={() => handleDelete(todo._id)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>delete</button>
+              <button className={styles.addBtn} onClick={handleAddTodo}>추가하기</button>
             </div>
-          ))}
-        </section>
+
+            {/* 필터 섹션 */}
+            <div className={styles.filterSection}>
+              <h2 className={styles.panelTitle}>필터</h2>
+              
+              <div className={styles.filterGroup}>
+                <label>카테고리</label>
+                <div className={styles.buttonGroup}>
+                  {['전체', 'Study', 'Work', 'Health', 'Personal'].map((cat) => (
+                    <button 
+                      key={cat}
+                      className={`${styles.filterBtn} ${categoryFilter === cat || categoryFilter.includes(cat) ? styles.filterBtnActive : ''}`}
+                      onClick={() => setCategoryFilter(cat === '전체' ? '전체' : cat)}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.filterGroup}>
+                <label>상태</label>
+                <div className={styles.buttonGroup}>
+                  {['전체', '진행 중', '완료'].map((status) => (
+                    <button 
+                      key={status}
+                      className={`${styles.filterBtn} ${statusFilter === status ? styles.filterBtnActive : ''}`}
+                      onClick={() => setStatusFilter(status)}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.filterGroup}>
+                <label>검색</label>
+                <input
+                  className={styles.searchInput}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="검색..."
+                />
+              </div>
+
+              <div className={styles.filterGroup}>
+                <label>정렬</label>
+                <select
+                  className={styles.sortSelect}
+                  value={sortType}
+                  onChange={(e) => setSortType(e.target.value)}
+                >
+                  <option value="endDate">마감일 순</option>
+                  <option value="priority">중요도 순</option>
+                  <option value="startDate">생성일 순</option>
+                </select>
+              </div>
+            </div>
+          </aside>
+
+          {/* RIGHT PANEL - 오늘 대시보드 */}
+          <section className={styles.rightPanel}>
+            <div className={styles.dashboardHeader}>
+              <h2 className={styles.dashboardTitle}>오늘의 일정</h2>
+            </div>
+
+            <div className={styles.dashboardStats}>
+              <div className={styles.statItem}>
+                <span className={styles.statValue}>{todayTodos.length}</span>
+                <span className={styles.statLabel}>해야할 일</span>
+              </div>
+              <div className={styles.statItem}>
+                <span className={styles.statValue}>{todayTodos.filter(t => t.is_completed).length}</span>
+                <span className={styles.statLabel}>완료</span>
+              </div>
+              <div className={styles.statItem}>
+                <span className={styles.statValue}>{todayTodos.filter(t => !t.is_completed).length}</span>
+                <span className={styles.statLabel}>진행중</span>
+              </div>
+            </div>
+
+            <div className={styles.todayList}>
+              <h3 className={styles.todayListTitle}>해야할 일</h3>
+              {todayTodos.length === 0 ? (
+                <div className={styles.emptyState}>
+                  <p>오늘 할 일이 없습니다! 🎉</p>
+                </div>
+              ) : (
+                todayTodos.map(todo => (
+                  <div key={todo._id} className={styles.todayItem}>
+                    <input 
+                      type="checkbox" 
+                      checked={todo.is_completed} 
+                      onChange={() => handleToggle(todo)} 
+                      className={styles.checkbox}
+                    />
+                    <div className={styles.todoContent}>
+                      <span className={styles.todoName}>{todo.task_name}</span>
+                      <div className={styles.tagGroup}>
+                        <span className={`${styles.tag} ${styles.categoryTag}`}>
+                          {todo.category}
+                        </span>
+                        <span className={`${styles.tag} ${styles[`priority${todo.priority}`]}`}>
+                          {todo.priority}
+                        </span>
+                      </div>
+                    </div>
+                    <button 
+                      className={styles.deleteBtn}
+                      onClick={() => handleDelete(todo._id)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* ===== FOOTER - 모든 일정 ===== */}
+        <footer className={styles.footerSection}>
+          <div className={styles.footerHeader}>
+            <h2>모든 일정 ({filteredTodos.length})</h2>
+          </div>
+
+          <div className={styles.footerStats}>
+            <div className={styles.footerStatItem}>
+              <span className={styles.footerStatValue}>{filteredTodos.length}</span>
+              <span className={styles.footerStatLabel}>전체</span>
+            </div>
+            <div className={styles.footerStatItem}>
+              <span className={styles.footerStatValue}>{filteredTodos.filter(t => t.is_completed).length}</span>
+              <span className={styles.footerStatLabel}>완료</span>
+            </div>
+            <div className={styles.footerStatItem}>
+              <span className={styles.footerStatValue}>{filteredTodos.filter(t => !t.is_completed).length}</span>
+              <span className={styles.footerStatLabel}>진행중</span>
+            </div>
+          </div>
+
+          <div className={styles.allTodosList}>
+            {filteredTodos.length === 0 ? (
+              <div className={styles.emptyState}>
+                <p>일정이 없습니다.</p>
+              </div>
+            ) : (
+              filteredTodos.map(todo => (
+                <div key={todo._id} className={`${styles.todoRow} ${todo.is_completed ? styles.completed : ''}`}>
+                  <input 
+                    type="checkbox" 
+                    checked={todo.is_completed} 
+                    onChange={() => handleToggle(todo)} 
+                    className={styles.checkboxFooter}
+                  />
+                  <span className={styles.todoName}>{todo.task_name}</span>
+                  <span className={`${styles.tag} ${styles.categoryTag}`}>{todo.category}</span>
+                  <span className={`${styles.tag} ${styles[`priority${todo.priority}`]}`}>{todo.priority}</span>
+                  <span className={styles.dueDate}>{todo.due_date?.slice(0, 10)}</span>
+                  <button 
+                    className={styles.deleteBtn}
+                    onClick={() => handleDelete(todo._id)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </footer>
       </div>
     </div>
   );
